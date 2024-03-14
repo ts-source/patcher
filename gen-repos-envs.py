@@ -4,7 +4,6 @@
 
 import os
 import requests
-from nacl import encoding, public
 from random_word import RandomWords
 
 org_to_use="ts-source"
