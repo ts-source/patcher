@@ -1,3 +1,4 @@
+
 require 'octokit'
 
 ##############################################################################################################
@@ -37,7 +38,7 @@ def retrieveRepos(org)
   reposFile = 'include-repos.txt'
   if File.exist?(reposFile)
     puts "\nFile #{reposFile} exists, using it to filter Repos in the Source Org\n\n"
-    repos = File.readlines(reposFile).map(&:chomp).reject { |line| line.start_with?("#") }
+    repos = File.readlines(reposFile).map(&:chomp).reject { |line| line.strip.empty? || line.start_with?("#") }
     repos.map! { |repo| "#{org}/#{repo}" } # add in org/ to each repo name
   else
     puts "\nFile #{reposFile} does not exist. Processing ALL Repos in the Source Org\n\n"
@@ -66,7 +67,7 @@ def mergePR(repoFullName, thePR)
     begin
       # $client.create_pull_request_review(repoFullName, thePR.number, event: 'APPROVE')
       $client.merge_pull_request(repoFullName, thePR.number)
-      log($output_csv,"#{repoFullName},success,PR approved", true)
+      log($output_csv,"#{repoFullName},success,PR merged", true)
       $client.delete_branch(repoFullName, thePR.head.ref)
       # log($output_csv,"#{repoFullName},success,branch deleted", true)
     rescue Octokit::UnprocessableEntity => e
@@ -76,22 +77,31 @@ def mergePR(repoFullName, thePR)
 end
 
 ##############################################################################################################
-def create_output_file(org)
+def create_output_files(org)
   create_output_folders()
-  #sring for date and time for file name
   time = Time.new
   time = time.strftime("%Y%m%d_%H%M%S")
+
   $output_csv = "#{$output_folder}/#{org}_#{time}_output.csv"
   File.open($output_csv, "w") do |file|
     file.puts("Repo,Message Type,Message")
   end
-end
+
+  $prs_csv = "#{$output_folder}/#{org}_prs.csv"
+  File.open($prs_csv, "w") do |file|
+    file.puts("Repo,Branch,State,Merged At,URL")
+  end
+end #end of create_output_files
 
 ##############################################################################################################
 def create_output_folders()
   $output_folder = "_out"
   unless File.directory?($output_folder)
     Dir.mkdir($output_folder)
+  end
+  $patch_files_folder = "patch_files"
+  unless File.directory?($patch_files_folder)
+    Dir.mkdir($patch_files_folder)
   end
 end #end of create_output_folders
 
@@ -104,13 +114,48 @@ rescue Octokit::NotFound
 end
 
 ##############################################################################################################
+def addFilesToRepo(repo, branchName)
+  fileCount = 0
+  Dir.glob('patch_files/**/*' , File::FNM_DOTMATCH).each do |file|
+    next if File.directory?(file) || File.basename(file) == '.DS_Store' #.DS_Store is a Mac thing
+    fileContent = File.read(file)
+    filePath = "#{File.basename(file)}"
+    commitMsg = "DevOps adding/updating file #{file}"
+    begin
+      existing_file = $client.contents(repo, path: filePath, ref: branchName)
+      $client.update_contents(repo, filePath, commitMsg, existing_file.sha, fileContent, branch: branchName)
+      fileCount += 1
+      # log($output_csv, "#{repo},success,File #{filePath} updated", true)
+    rescue Octokit::NotFound
+      $client.create_contents(repo, filePath, commitMsg, fileContent, branch: branchName)
+      fileCount += 1
+      # log($output_csv, "#{repo},success,File #{filePath} added", true)
+    rescue Octokit::UnprocessableEntity => e
+      log($output_csv, "#{repo},warning,Failed to add/update file #{filePath},#{e.message}", true)
+    end
+  end # end of Dir.glob
+  log($output_csv, "#{repo},success,#{fileCount} files added to branch", true)
+end # end of addFilesToRepo
+
+##############################################################################################################
+def reportOnExistingDevOpsPRs(repo, devopsPrefix)
+  existingPRs = $client.pull_requests(repo, state: 'all')
+  existingPRs.each do |pr|
+    if pr.head.ref.start_with?(devopsPrefix)
+      log($prs_csv, "#{repo},#{pr.head.ref},#{pr.state},#{pr.merged_at},#{pr.html_url}", false)
+    end
+  end
+end # end of reportOnExistingDevOpsPRs
+
+##############################################################################################################
 ##############################################################################################################
 def main()
   setupOctokit()
   org = 'ts-source'
-  branchName = 'workflow_patch'
-  commitMsgPrName = "add Checkmarx SARIF upload workflow [skip ci]"
-  create_output_file(org)
+  devopsPrefix = 'qqqDevOps_' # if all branches we create have a unique prefix, we can find them later
+  branchName =  devopsPrefix + 'patchNumber48'
+  pr_name = "DevOps patching repo..."
+  create_output_files(org)
   repos = retrieveRepos(org)
 
   repos.each do |repo|
@@ -126,15 +171,9 @@ def main()
       $client.create_ref(repo, "refs/heads/#{branchName}", mainBranch.commit.sha)
     end
 
-    workflowFile = File.read('sarif.yml') # read in the workflow file
-
-    begin
-      $client.create_contents(repo, '.github/workflows/sarif.yml', commitMsgPrName, workflowFile, branch: branchName)
-    rescue Octokit::UnprocessableEntity => e
-      # puts "file exists, dont need to create it"
-    end
-
-    thePR = create_pull_request(repo, mainBranch, branchName, commitMsgPrName)
+    addFilesToRepo(repo, branchName)
+    reportOnExistingDevOpsPRs(repo, devopsPrefix) # report on existing PRs before creating a new one
+    thePR = create_pull_request(repo, mainBranch, branchName, pr_name)
     mergePR(repo, thePR)
   end # repos.each
 end # main
