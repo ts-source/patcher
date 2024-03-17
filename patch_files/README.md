@@ -1,0 +1,3 @@
+- This repo will upload (commit) anything under the patch_files folder to GitHub into a new branch that is contained in a variable that you can set.
+- It has a prefix that can remain constant signifying that it's from the "DevOps" team, allowing for the PR's that are created to be searched for later
+- After the files are committed, the PR is raised and auto merging is attempted, but it is expected that in many environments either checks or reviews will have to be done, preventing the merge to succeed - this has not been tested yet
