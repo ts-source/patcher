@@ -152,9 +152,8 @@ end # end of reportOnExistingDevOpsPRs
 # dump out api rate limit used, and remaining
 def reportRateLimit(extraMsg)
   rateLimit = $client.rate_limit!
-  # puts "::: #{rateLimit}"
   puts "::: API Rate Limit: #{extraMsg}: #{rateLimit.remaining} of #{rateLimit.limit} requests remaining. Resets at: #{rateLimit.resets_at}"
-end
+end # end of reportRateLimit
 
 ##############################################################################################################
 ##############################################################################################################
@@ -167,8 +166,8 @@ def main()
   create_output_files(org)
   repos = retrieveRepos(org)
 
-  repos.each do |repo|
-    reportRateLimit("repo")
+  repos.each_with_index do |repo, index|
+    reportRateLimit("repo") if index % 50 == 0
     suspend_s = 5
     begin
       if !repo_exists?($client, repo)
