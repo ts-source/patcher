@@ -20,6 +20,7 @@ def setupOctokit
   end
   $client = Octokit::Client.new(access_token: access_token)
   $client.auto_paginate = true
+  reportRateLimit("beginning of run")
 end
 
 ##############################################################################################################
@@ -148,6 +149,14 @@ def reportOnExistingDevOpsPRs(repo, devopsPrefix)
 end # end of reportOnExistingDevOpsPRs
 
 ##############################################################################################################
+# dump out api rate limit used, and remaining
+def reportRateLimit(extraMsg)
+  rateLimit = $client.rate_limit!
+  # puts "::: #{rateLimit}"
+  puts "::: API Rate Limit: #{extraMsg}: #{rateLimit.remaining} of #{rateLimit.limit} requests remaining. Resets at: #{rateLimit.resets_at}"
+end
+
+##############################################################################################################
 ##############################################################################################################
 def main()
   setupOctokit()
@@ -159,23 +168,33 @@ def main()
   repos = retrieveRepos(org)
 
   repos.each do |repo|
-    # if repo does not exist, skip it
-    if !repo_exists?($client, repo)
-     log($output_csv,"#{repo},warning,Repo does not exist", true)
-     next
-    end
+    reportRateLimit("repo")
+    suspend_s = 5
+    begin
+      if !repo_exists?($client, repo)
+        log($output_csv,"#{repo},warning,Repo does not exist", true)
+        next
+      end
 
-    mainBranch = $client.branch(repo, $client.repository(repo).default_branch)
+      mainBranch = $client.branch(repo, $client.repository(repo).default_branch)
 
-    if !branch_exists?($client, repo, branchName)
-      $client.create_ref(repo, "refs/heads/#{branchName}", mainBranch.commit.sha)
-    end
+      if !branch_exists?($client, repo, branchName)
+        $client.create_ref(repo, "refs/heads/#{branchName}", mainBranch.commit.sha)
+      end
 
-    addFilesToRepo(repo, branchName)
-    reportOnExistingDevOpsPRs(repo, devopsPrefix) # report on existing PRs before creating a new one
-    thePR = create_pull_request(repo, mainBranch, branchName, pr_name)
-    mergePR(repo, thePR)
+      addFilesToRepo(repo, branchName)
+      reportOnExistingDevOpsPRs(repo, devopsPrefix) # report on existing PRs before creating a new one
+      thePR = create_pull_request(repo, mainBranch, branchName, pr_name)
+      mergePR(repo, thePR)
+    rescue Octokit::TooManyRequests
+      puts "Rate limit exceeded, sleeping for #{suspend_s} seconds"
+      sleep suspend_s
+      suspend_s = [suspend_s * 2, client.rate_limit.resets_in + 1].min
+      retry
+    end # begin-rescue block
   end # repos.each
+
+  reportRateLimit("end of run")
 end # main
 
 main()
