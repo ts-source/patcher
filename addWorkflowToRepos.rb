@@ -120,8 +120,8 @@ def addFilesToRepo(repo, branchName)
   Dir.glob('patch_files/**/*' , File::FNM_DOTMATCH).each do |file|
     next if File.directory?(file) || File.basename(file) == '.DS_Store' #.DS_Store is a Mac thing
     fileContent = File.read(file)
-    filePath = "#{File.basename(file)}"
-    commitMsg = "DevOps adding/updating file #{file}"
+    filePath = "#{file.sub('patch_files/', '')}" # Remove the first folder from the file path
+    commitMsg = "DevOps adding/updating file #{file} [skip ci]"
     begin
       existing_file = $client.contents(repo, path: filePath, ref: branchName)
       $client.update_contents(repo, filePath, commitMsg, existing_file.sha, fileContent, branch: branchName)
