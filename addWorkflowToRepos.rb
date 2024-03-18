@@ -119,6 +119,7 @@ def addFilesToRepo(repo, branchName)
   fileCount = 0
   Dir.glob('patch_files/**/*' , File::FNM_DOTMATCH).each do |file|
     next if File.directory?(file) || File.basename(file) == '.DS_Store' #.DS_Store is a Mac thing
+
     fileContent = File.read(file)
     filePath = "#{file.sub('patch_files/', '')}" # Remove the first folder from the file path
     commitMsg = "DevOps adding/updating file #{file} [skip ci]"
@@ -128,6 +129,7 @@ def addFilesToRepo(repo, branchName)
       fileCount += 1
       # log($output_csv, "#{repo},success,File #{filePath} updated", true)
     rescue Octokit::NotFound
+      # the files aren't there already, so create them
       $client.create_contents(repo, filePath, commitMsg, fileContent, branch: branchName)
       fileCount += 1
       # log($output_csv, "#{repo},success,File #{filePath} added", true)
@@ -185,6 +187,7 @@ def main()
       reportOnExistingDevOpsPRs(repo, devopsPrefix) # report on existing PRs before creating a new one
       thePR = create_pull_request(repo, mainBranch, branchName, pr_name)
       mergePR(repo, thePR)
+
     rescue Octokit::TooManyRequests
       puts "Rate limit exceeded, sleeping for #{suspend_s} seconds"
       sleep suspend_s
