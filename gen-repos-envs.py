@@ -19,7 +19,7 @@ def create_and_initialize_repo(org, repo, token):
 
   print(f"{repo}")
   # append to include-repos.txt
-  with open("include-repos.txt", "a") as f:
+  with open("include-repos.txt", "w") as f:
     f.write(f"{repo}\n")
 
 ############################################################################################################

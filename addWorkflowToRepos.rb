@@ -67,7 +67,7 @@ def mergePR(repoFullName, thePR)
 
     begin
       # $client.create_pull_request_review(repoFullName, thePR.number, event: 'APPROVE')
-      $client.merge_pull_request(repoFullName, thePR.number)
+     mergedPR = $client.merge_pull_request(repoFullName, thePR.number)
       log($output_csv,"#{repoFullName},success,PR merged", true)
       $client.delete_branch(repoFullName, thePR.head.ref)
       # log($output_csv,"#{repoFullName},success,branch deleted", true)
@@ -75,6 +75,8 @@ def mergePR(repoFullName, thePR)
       # find an open PR for the branch with the right name
       log($output_csv,"#{repoFullName},warning,erorr occured: #{e.message}", true)
     end
+    # puts "Merged PR SHA: #{mergedPR.sha}"
+  mergedPR.sha
 end
 
 ##############################################################################################################
@@ -138,19 +140,18 @@ def addFilesToRepo(repo, branchName)
     end
   end # end of Dir.glob
   log($output_csv, "#{repo},success,#{fileCount} files added to branch", true)
+  fileCount # return the number of files added so they can be verified
 end # end of addFilesToRepo
 
-# def validateFilesWereAdded(repo, patchBranch, mainBranch)
-#   #get the branch for this branch name
-
-#     branch = $client.ref(repo, "heads/#{patchBranch}")
-#     # branch.object.sha
-#   comparison = $client.compare(repo, mainBranch, branch)
-
-#   comparison.files.each do |file|
-#     puts "File: #{file.filename}, SHA: #{file.sha}"
-#   end
-# end
+def validateFilesWereAdded(repo, shaFromMerge)
+  commit = $client.commit(repo, shaFromMerge)
+  puts "Date: #{commit.commit.author.date}"
+  puts "Message: #{commit.commit.message}"
+  puts "-------------------------"
+  commit.files.each do |file|
+    puts "File: #{file.filename}"
+  end
+end
 
 
 
@@ -179,6 +180,7 @@ def main()
   devopsPrefix = 'qqqDevOps_' # if all branches we create have a unique prefix, we can find them later
   branchName =  devopsPrefix + 'patchNumber48'
   pr_name = "DevOps patching repo..."
+  debug_flag = true
   create_output_files(org)
   repos = retrieveRepos(org)
 
@@ -197,11 +199,12 @@ def main()
         $client.create_ref(repo, "refs/heads/#{branchName}", mainBranch.commit.sha)
       end
 
-      addFilesToRepo(repo, branchName)
-      # validateFilesWereAdded(repo, branchName, mainBranch)
+      numberOfFilesAdded = addFilesToRepo(repo, branchName)
       # reportOnExistingDevOpsPRs(repo, devopsPrefix) # report on existing PRs before creating a new one
       thePR = create_pull_request(repo, mainBranch, branchName, pr_name)
-      mergePR(repo, thePR)
+      mergeSHA=mergePR(repo, thePR)
+      validateFilesWereAdded(repo, mergeSHA) if debug_flag
+
 
     rescue Octokit::TooManyRequests
       puts "Rate limit exceeded, sleeping for #{suspend_s} seconds"
