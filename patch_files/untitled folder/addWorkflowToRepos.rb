@@ -124,8 +124,7 @@ def addFilesToRepo(repo, branchName)
 
     fileContent = File.read(file)
     filePath = "#{file.sub('patch_files/', '')}" # Remove the first folder from the file path
-    fileName = filePath.split('/').last # get just the text at the end after the last slash
-    commitMsg = "DevOps adding/updating file #{fileName} [skip ci]"
+    commitMsg = "DevOps adding/updating file #{file} [skip ci]"
     begin
       existing_file = $client.contents(repo, path: filePath, ref: branchName)
       $client.update_contents(repo, filePath, commitMsg, existing_file.sha, fileContent, branch: branchName)
@@ -144,19 +143,16 @@ def addFilesToRepo(repo, branchName)
   fileCount # return the number of files added so they can be verified
 end # end of addFilesToRepo
 
-##############################################################################################################
 def validateFilesWereAdded(repo, shaFromMerge)
   commit = $client.commit(repo, shaFromMerge)
-  header = <<-__TEXT__
-  Date: #{commit.commit.author.date}
-  Message: #{commit.commit.message}
-  ----- File(s) changed ----------------------
-  __TEXT__
+  puts "Date: #{commit.commit.author.date}"
+  puts "Message: #{commit.commit.message}"
+  puts "-------------------------"
   commit.files.each do |file|
-    header += "  File: ./#{file.filename}\n"
+    puts "File: #{file.filename}"
   end
-  log($output_csv, "#{repo},debug,\n#{header}", true)
 end
+
 
 
 ##############################################################################################################
