@@ -140,6 +140,20 @@ def addFilesToRepo(repo, branchName)
   log($output_csv, "#{repo},success,#{fileCount} files added to branch", true)
 end # end of addFilesToRepo
 
+# def validateFilesWereAdded(repo, patchBranch, mainBranch)
+#   #get the branch for this branch name
+
+#     branch = $client.ref(repo, "heads/#{patchBranch}")
+#     # branch.object.sha
+#   comparison = $client.compare(repo, mainBranch, branch)
+
+#   comparison.files.each do |file|
+#     puts "File: #{file.filename}, SHA: #{file.sha}"
+#   end
+# end
+
+
+
 ##############################################################################################################
 def reportOnExistingDevOpsPRs(repo, devopsPrefix)
   existingPRs = $client.pull_requests(repo, state: 'all')
@@ -184,7 +198,8 @@ def main()
       end
 
       addFilesToRepo(repo, branchName)
-      reportOnExistingDevOpsPRs(repo, devopsPrefix) # report on existing PRs before creating a new one
+      # validateFilesWereAdded(repo, branchName, mainBranch)
+      # reportOnExistingDevOpsPRs(repo, devopsPrefix) # report on existing PRs before creating a new one
       thePR = create_pull_request(repo, mainBranch, branchName, pr_name)
       mergePR(repo, thePR)
 
