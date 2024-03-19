@@ -1,4 +1,15 @@
-
+# This script adds files to multiple repositories in an organization.
+# It uses the Octokit gem to interact with the GitHub API.
+# The script performs the following steps:
+# 1. Reads a list of repositories from a text file or retrieves all repositories in the organization.
+# 2. Creates a new branch in each repository.
+# 3. Adds files from the "patch_files" folder to the new branch.
+# 4. Creates a pull request from the new branch to the default branch.
+# 5. Merges the pull request and deletes the branch.
+# 6. Validates that the files were successfully added to the default branch if a debug flag is true.
+# 7. Reports on existing pull requests with a specific prefix.
+# 8. Outputs the results to CSV files.
+#
 require 'octokit'
 
 ##############################################################################################################
