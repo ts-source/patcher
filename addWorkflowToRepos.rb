@@ -43,19 +43,41 @@ rescue Octokit::NotFound
 end
 
 ##############################################################################################################
+def getReposToInclude(org)
+  reposToInclude = []
+  # Read the list of repositories to include from a text file
+  repoIncludeFile = 'include-repos.txt'
+  if File.exist?(repoIncludeFile)
+    puts "\nFile #{repoIncludeFile} exists, using it to filter Repos in the Source Org\n\n"
+    reposToInclude = File.readlines(repoIncludeFile).map(&:chomp).reject { |line| line.strip.empty? || line.start_with?("#") }
+    reposToInclude.map! { |repo| "#{org}/#{repo}" } # add in org/ to each repo name
+  else
+    puts "\nFile #{repoIncludeFile} does not exist. Processing ALL Repos in the Source Org\n\n"
+    reposToInclude = $client.org_repos(org).map(&:full_name)
+  end
+  return reposToInclude
+end # getReposToInclude
+
+def getReposToExclude(org)
+  reposToExclude = []
+  # Read the list of repositories to exclude from a text file
+  repoExcludeFile = 'exclude-repos.txt'
+  if File.exist?(repoExcludeFile)
+    puts "\nFile #{repoExcludeFile} exists, using it to filter Repos in the Source Org\n\n"
+    reposToExclude = File.readlines(repoExcludeFile).map(&:chomp).reject { |line| line.strip.empty? || line.start_with?("#") }
+    reposToExclude.map! { |repo| "#{org}/#{repo}" } # add in org/ to each repo name
+  else
+    puts "\nFile #{repoExcludeFile} does not exist. Processing ALL Repos that were included\n\n"
+  end
+  return reposToExclude
+end # getReposToExclude
+
+
+##############################################################################################################
 def retrieveRepos(org)
   repos = []
-
-  # Read the list of repositories from a text file
-  reposFile = 'include-repos.txt'
-  if File.exist?(reposFile)
-    puts "\nFile #{reposFile} exists, using it to filter Repos in the Source Org\n\n"
-    repos = File.readlines(reposFile).map(&:chomp).reject { |line| line.strip.empty? || line.start_with?("#") }
-    repos.map! { |repo| "#{org}/#{repo}" } # add in org/ to each repo name
-  else
-    puts "\nFile #{reposFile} does not exist. Processing ALL Repos in the Source Org\n\n"
-    repos = $client.org_repos(org).map(&:full_name)
-  end
+  repos += getReposToInclude(org)
+  repos -= getReposToExclude(org)
   repos.sort!
   return repos
 end # retrieveRepos
