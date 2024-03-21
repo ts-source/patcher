@@ -16,7 +16,7 @@
 - Install Ruby. You can download it from the [official website](https://www.ruby-lang.org/en/downloads/).
 - If you are using Windows, you will need to install the Ruby+Devkit version. You can download it from the [official website](https://rubyinstaller.org/downloads/). Or try: [Chocolatey](https://chocolatey.org/) by running `choco install ruby` in your terminal.
 - If using Mac, you can install Ruby using Homebrew by running `brew install ruby` in your terminal.
-- Install the `octokit` gem by running `gem install octokit` in your terminal.
+- Install the `octokit` gem by running `bundle install` in this folder. If you don't have bundler installed, you can install it by running `gem install bundler` in your terminal.
 
 
 ## License
